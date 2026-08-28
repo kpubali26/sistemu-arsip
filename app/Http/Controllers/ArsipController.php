@@ -481,10 +481,17 @@ class ArsipController extends Controller
             }
 
             // Upload file
+            // if ($request->hasFile('file_dokumen')) {
+            //     $file = $request->file('file_dokumen');
+            //     $fileName = time().'_'.$file->getClientOriginalName();
+            //     $file->storeAs('arsip', $fileName, 'public');
+            //     $validated['file_dokumen'] = $fileName;
+            // }
+
             if ($request->hasFile('file_dokumen')) {
                 $file = $request->file('file_dokumen');
                 $fileName = time().'_'.$file->getClientOriginalName();
-                $file->storeAs('arsip', $fileName, 'public');
+                $file->storeAs('', $fileName, 'arsip');
                 $validated['file_dokumen'] = $fileName;
             }
 
@@ -769,26 +776,40 @@ class ArsipController extends Controller
             // =========================
             // HAPUS FILE LAMA (JIKA DIMINTA)
             // =========================
+            // if (($request->hapus_file ?? '0') == '1' && $arsip->file_dokumen) {
+            //     Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
+            //     $validated['file_dokumen'] = null;
+            // }
             if (($request->hapus_file ?? '0') == '1' && $arsip->file_dokumen) {
-                Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
+                Storage::disk('arsip')->delete($arsip->file_dokumen);
                 $validated['file_dokumen'] = null;
             }
 
             // =========================
             // UPLOAD FILE BARU
             // =========================
+            // if ($request->hasFile('file_dokumen')) {
+            //     // hapus file lama
+            //     if ($arsip->file_dokumen) {
+            //         Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
+            //     }
+
+            //     $file = $request->file('file_dokumen');
+            //     $fileName = time().'_'.$file->getClientOriginalName();
+            //     $file->storeAs('arsip', $fileName, 'public');
+
+            //     $validated['file_dokumen'] = $fileName;
+            // }
+
             if ($request->hasFile('file_dokumen')) {
-                // hapus file lama
-                if ($arsip->file_dokumen) {
-                    Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
-                }
-
-                $file = $request->file('file_dokumen');
-                $fileName = time().'_'.$file->getClientOriginalName();
-                $file->storeAs('arsip', $fileName, 'public');
-
-                $validated['file_dokumen'] = $fileName;
-            }
+    if ($arsip->file_dokumen) {
+        Storage::disk('arsip')->delete($arsip->file_dokumen);
+    }
+    $file = $request->file('file_dokumen');
+    $fileName = time().'_'.$file->getClientOriginalName();
+    $file->storeAs('', $fileName, 'arsip');
+    $validated['file_dokumen'] = $fileName;
+}
 
             // =========================
             // HITUNG ULANG RETENSI (SERVER SIDE)
@@ -877,15 +898,37 @@ if ($request->tangani_duplikat == '1') {
     public function destroy(Arsip $arsip)
     {
         // Hapus file jika ada
-        if ($arsip->file_dokumen && Storage::disk('public')->exists('arsip/'.$arsip->file_dokumen)) {
-            Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
-        }
+        // if ($arsip->file_dokumen && Storage::disk('public')->exists('arsip/'.$arsip->file_dokumen)) {
+        //     Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
+        // }
+        if ($arsip->file_dokumen && Storage::disk('arsip')->exists($arsip->file_dokumen)) {
+    Storage::disk('arsip')->delete($arsip->file_dokumen);
+}
+
 
         $arsip->delete();
 
         return redirect()->route('arsip.index')
             ->with('success', 'Arsip berhasil dihapus.');
     }
+
+    public function viewFile(Arsip $arsip)
+{
+    if (! $arsip->file_dokumen || ! Storage::disk('arsip')->exists($arsip->file_dokumen)) {
+        abort(404, 'File dokumen tidak ditemukan di server ini.');
+    }
+
+    return Storage::disk('arsip')->response($arsip->file_dokumen);
+}
+
+public function downloadFile(Arsip $arsip)
+{
+    if (! $arsip->file_dokumen || ! Storage::disk('arsip')->exists($arsip->file_dokumen)) {
+        abort(404, 'File dokumen tidak ditemukan di server ini.');
+    }
+
+    return Storage::disk('arsip')->download($arsip->file_dokumen);
+}
 
     /**
      * Fungsi untuk memperbarui status semua arsip

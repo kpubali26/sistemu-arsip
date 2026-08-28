@@ -202,7 +202,7 @@
                                     <div>
                                         @if($arsip->file_dokumen)
                                             <!-- <a href="{{ route('arsip.downloadFile', $arsip->id) }}" -->
-                                              <a href="{{ asset('storage/arsip/'.$arsip->file_dokumen) }}"
+                                              <a href="{{ route('arsip.file', $arsip->id) }}"
                                                target="_blank"
                                                class="btn btn-primary">
                                                 Lihat/Unduh Dokumen

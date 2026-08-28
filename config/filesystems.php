@@ -60,6 +60,12 @@ return [
             'report' => false,
         ],
 
+        'arsip' => [
+            'driver'     => 'local',
+            'root'       => env('ARSIP_STORAGE_PATH', storage_path('app/public/arsip')),
+            'visibility' => 'private',
+        ],
+
     ],
 
     /*
