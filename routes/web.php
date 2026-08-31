@@ -43,6 +43,12 @@ Route::middleware(['auth', 'nocache'])
     });
 
 Route::middleware(['auth', 'nocache'])->group(function () {
+    
+Route::get('/arsip/{arsip}/file', [ArsipController::class, 'viewFile'])
+    ->name('arsip.file');
+
+Route::get('/arsip/{arsip}/file/download', [ArsipController::class, 'downloadFile'])
+    ->name('arsip.file.download');
     Route::get('/sinar-v1', [SinarV1DocumentController::class, 'index'])->name('sinar-v1.index');
     Route::get('/sinar-v1/import', [SinarV1DocumentController::class, 'importPage'])->name('sinar-v1.import');
     Route::post('/sinar-v1/import', [SinarV1DocumentController::class, 'runImport'])->name('sinar-v1.import.run');
