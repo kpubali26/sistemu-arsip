@@ -71,57 +71,144 @@ class BackupService
         }
     }
 
+    // protected function buildZip(string $zipPath, string $sqlPath, callable $progressCallback = null): void
+    // {
+    //     $zip = new ZipArchive();
+    //     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+    //         throw new \RuntimeException("Gagal membuat file zip di {$zipPath}");
+    //     }
+
+    //     // masukkan sql dump
+    //     $zip->addFile($sqlPath, 'database.sql');
+
+    //     // kumpulkan semua file di storage/app (sesuaikan sumbernya, bisa juga public/storage)
+    //     $sourcePath = storage_path('app');
+    //     $excludeDirs = [
+    //         storage_path('app/' . $this->backupFolder),
+    //         storage_path('app/framework'), // cache framework, biasanya gak perlu
+    //     ];
+
+    //     $files = new \RecursiveIteratorIterator(
+    //         new \RecursiveDirectoryIterator($sourcePath, \RecursiveDirectoryIterator::SKIP_DOTS)
+    //     );
+
+    //     $total = iterator_count($files);
+    //     $files->rewind();
+    //     $count = 0;
+
+    //     foreach ($files as $file) {
+    //         $count++;
+    //         $filePath = $file->getRealPath();
+
+    //         // skip folder backup itu sendiri & folder tmp
+    //         foreach ($excludeDirs as $ex) {
+    //             if (str_starts_with($filePath, $ex)) {
+    //                 continue 2;
+    //             }
+    //         }
+    //         if (str_starts_with($filePath, storage_path('app/tmp-backup-'))) {
+    //             continue;
+    //         }
+
+    //         if ($file->isFile()) {
+    //             $relativePath = 'storage/' . substr($filePath, strlen($sourcePath) + 1);
+    //             $zip->addFile($filePath, $relativePath);
+    //         }
+
+    //         // update progress tiap 200 file biar gak spam callback
+    //         if ($progressCallback && $count % 200 === 0) {
+    //             $percent = 30 + (int) round(($count / max($total, 1)) * 60); // 30-90%
+    //             $progressCallback($percent, "Mengarsipkan file ({$count}/{$total})");
+    //         }
+    //     }
+
+    //     $zip->close();
+    // }
+
     protected function buildZip(string $zipPath, string $sqlPath, callable $progressCallback = null): void
-    {
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new \RuntimeException("Gagal membuat file zip di {$zipPath}");
+{
+      Log::info('ENV langsung: [' . env('ARSIP_STORAGE_PATH') . ']');
+   Log::info('Config backup lengkap: ' . json_encode(config('backup')));
+   Log::info('Config arsip_storage_path: [' . config('backup.arsip_storage_path') . ']');
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new \RuntimeException("Gagal membuat file zip di {$zipPath}");
+    }
+
+    $zip->addFile($sqlPath, 'database.sql');
+
+    $sourcePath = storage_path('app');
+    $excludeDirs = [
+        storage_path('app/' . $this->backupFolder),
+        storage_path('app/framework'),
+    ];
+
+    // path arsip eksternal (bisa beda drive per instalasi kab/kota)
+    $arsipPath = rtrim(config('backup.arsip_storage_path'), '\\/');
+    $isArsipExternal = $arsipPath
+        && is_dir($arsipPath)
+        && !str_starts_with(realpath($arsipPath), realpath($sourcePath));
+
+    // hitung total file dari kedua sumber, biar progress bar akurat
+    $mainFiles = new \RecursiveIteratorIterator(
+        new \RecursiveDirectoryIterator($sourcePath, \RecursiveDirectoryIterator::SKIP_DOTS)
+    );
+    $total = iterator_count($mainFiles);
+
+    if ($isArsipExternal) {
+        $arsipFiles = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($arsipPath, \RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+        $total += iterator_count($arsipFiles);
+    }
+
+    $count = 0;
+
+    // --- 1) proses storage/app seperti biasa ---
+    $mainFiles->rewind();
+    foreach ($mainFiles as $file) {
+        $count++;
+        $filePath = $file->getRealPath();
+
+        foreach ($excludeDirs as $ex) {
+            if (str_starts_with($filePath, $ex)) {
+                continue 2;
+            }
+        }
+        if (str_starts_with($filePath, storage_path('app/tmp-backup-'))) {
+            continue;
         }
 
-        // masukkan sql dump
-        $zip->addFile($sqlPath, 'database.sql');
+        if ($file->isFile()) {
+            $relativePath = 'storage/' . substr($filePath, strlen($sourcePath) + 1);
+            $zip->addFile($filePath, $relativePath);
+        }
 
-        // kumpulkan semua file di storage/app (sesuaikan sumbernya, bisa juga public/storage)
-        $sourcePath = storage_path('app');
-        $excludeDirs = [
-            storage_path('app/' . $this->backupFolder),
-            storage_path('app/framework'), // cache framework, biasanya gak perlu
-        ];
+        if ($progressCallback && $count % 200 === 0) {
+            $percent = 30 + (int) round(($count / max($total, 1)) * 60);
+            $progressCallback($percent, "Mengarsipkan file ({$count}/{$total})");
+        }
+    }
 
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($sourcePath, \RecursiveDirectoryIterator::SKIP_DOTS)
-        );
-
-        $total = iterator_count($files);
-        $files->rewind();
-        $count = 0;
-
-        foreach ($files as $file) {
+    // --- 2) proses folder arsip eksternal, kalau memang di luar storage/app ---
+    if ($isArsipExternal) {
+        $arsipFiles->rewind();
+        foreach ($arsipFiles as $file) {
             $count++;
             $filePath = $file->getRealPath();
 
-            // skip folder backup itu sendiri & folder tmp
-            foreach ($excludeDirs as $ex) {
-                if (str_starts_with($filePath, $ex)) {
-                    continue 2;
-                }
-            }
-            if (str_starts_with($filePath, storage_path('app/tmp-backup-'))) {
-                continue;
-            }
-
             if ($file->isFile()) {
-                $relativePath = 'storage/' . substr($filePath, strlen($sourcePath) + 1);
+                $relativePath = 'arsip-eksternal/' . substr($filePath, strlen($arsipPath) + 1);
                 $zip->addFile($filePath, $relativePath);
             }
 
-            // update progress tiap 200 file biar gak spam callback
             if ($progressCallback && $count % 200 === 0) {
-                $percent = 30 + (int) round(($count / max($total, 1)) * 60); // 30-90%
-                $progressCallback($percent, "Mengarsipkan file ({$count}/{$total})");
+                $percent = 30 + (int) round(($count / max($total, 1)) * 60);
+                $progressCallback($percent, "Mengarsipkan file eksternal ({$count}/{$total})");
             }
         }
-
-        $zip->close();
     }
+
+    $zip->close();
+}
 }
