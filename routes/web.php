@@ -26,10 +26,18 @@ use App\Http\Controllers\SuratInstansiController;
 use App\Http\Controllers\TujuanDisposisiController;
 use App\Http\Controllers\SatkerController;
 use App\Http\Controllers\Admin\BackupController;
+use App\Http\Controllers\GuideBookController;
+use App\Http\Controllers\SuperAdmin\GuideBookManagementController;
 
 
 require __DIR__.'/auth.php';
 
+Route::middleware(['auth'])->group(function () {
+    Route::get('/panduan', [GuideBookController::class, 'index'])->name('guide-book.index');
+    Route::post('/panduan', [GuideBookController::class, 'store'])->name('guide-book.store');
+    Route::get('/panduan/{guideBook}/download', [GuideBookController::class, 'download'])->name('guide-book.download');
+    Route::delete('/panduan/{guideBook}', [GuideBookController::class, 'destroy'])->name('guide-book.destroy');
+});
 
 Route::middleware(['auth', 'nocache']) 
     ->prefix('admin/backup')
@@ -263,6 +271,9 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth'])->group(fu
     Route::resource('satkers', SatkerController::class);
     Route::patch('satkers/{satker}/set-active', [SatkerController::class, 'setActive'])
         ->name('satkers.set-active');
+    Route::resource('guide-books', GuideBookManagementController::class);
+    Route::get('guide-books/{guideBook}/download', [GuideBookManagementController::class, 'download'])
+        ->name('guide-books.download');
 });
 Route::middleware('admin')->group(function () {
 Route::get('/surat-masuk/template', function () {

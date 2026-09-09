@@ -476,6 +476,11 @@
                     <li class="nav-item"><a class="nav-link {{ request()->routeIs('superadmin.satkers.*') ? 'active' : '' }}" href="{{ route('superadmin.satkers.index') }}"><i class="bi bi-building-fill-gear"></i> <span>Kelola Satker</span></a></li>
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('superadmin.users.*') ? 'active' : '' }}" href="{{ route('superadmin.users.index') }}"><i class="bi bi-shield-check"></i> <span>Manajemen User</span></a></li>
                 <li class="nav-item"><a class="nav-link {{ request()->routeIs('admin.backup.*') ? 'active' : '' }}" href="{{ route('admin.backup.index') }}"><i class="bi bi-cloud-arrow-down-fill"></i> <span>Backup Sistem</span></a></li>
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('superadmin.guide-books.*') ? 'active' : '' }}" href="{{ route('superadmin.guide-books.index') }}">
+                        <i class="bi bi-journal-bookmark-fill"></i> <span>Manajemen Guide Book</span>
+                    </a>
+                </li>
             @endif
 
             @if(auth()->user()->role === 'user')
@@ -549,6 +554,11 @@
                     </a>
                 </li> --}}
             @endif
+            <li class="nav-item">
+    <a class="nav-link {{ request()->routeIs('guide-book.*') ? 'active' : '' }}" href="{{ route('guide-book.index') }}">
+        <i class="bi bi-journal-bookmark-fill"></i> <span>Panduan Pengguna</span>
+    </a>
+</li>
         @endauth
     </ul>
 </div>
