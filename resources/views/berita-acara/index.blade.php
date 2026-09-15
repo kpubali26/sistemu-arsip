@@ -252,7 +252,7 @@
                                    accept=".pdf,.jpg,.jpeg,.png" 
                                    required>
                             <small class="text-muted">
-                                Format: PDF, JPG, JPEG, PNG (Max 10 MB)
+                                Format: PDF, JPG, JPEG, PNG (Max 100 MB)
                             </small>
                         </div>
                     </div>
@@ -435,10 +435,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (file) {
                 const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
                 const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-                const maxSize = 10 * 1024 * 1024;
+                const maxSize = 100 * 1024 * 1024;
                 
                 if (file.size > maxSize) {
-                    alert('Ukuran file terlalu besar. Maksimal 10MB.');
+                    alert('Ukuran file terlalu besar. Maksimal 100MB.');
                     this.value = '';
                     return;
                 }

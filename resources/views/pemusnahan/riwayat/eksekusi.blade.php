@@ -227,7 +227,7 @@
                                required>
                         <i class="bi bi-cloud-upload fs-1 text-muted mb-2 d-block"></i>
                         <p class="mb-1">Klik atau drag & drop file di sini</p>
-                        <small class="text-muted">Format PDF maksimal 10MB</small>
+                        <small class="text-muted">Format PDF maksimal 100MB</small>
                         <div id="fileNameSK" class="mt-2 small text-success d-none">
                             <i class="bi bi-check-circle"></i> <span></span>
                         </div>
@@ -375,7 +375,7 @@
                 uploadAreaSK.style.borderColor = '#28a745';
                 uploadAreaSK.style.backgroundColor = '#f8fff8';
             } else {
-                alert('File harus berformat PDF dan maksimal 10MB');
+                alert('File harus berformat PDF dan maksimal 100MB');
                 fileInputSK.value = '';
                 fileNameSpanSK.classList.add('d-none');
                 uploadAreaSK.style.borderColor = '#dee2e6';

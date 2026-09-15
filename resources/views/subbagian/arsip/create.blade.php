@@ -4,6 +4,50 @@
 @section('page-subtitle', 'Form Tambah Arsip Digital')
 
 @section('content')
+@push('styles')
+<style>
+    .searchable-select-wrapper {
+        position: relative;
+    }
+
+    .searchable-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        max-height: 250px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-top: none;
+        border-radius: 0 0 0.375rem 0.375rem;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    }
+
+    .searchable-select-option {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .searchable-select-option:hover,
+    .searchable-select-option.active {
+        background-color: #f0f4ff;
+    }
+
+    .searchable-select-option.d-none {
+        display: none;
+    }
+
+    .searchable-select-empty {
+        padding: 0.5rem 0.75rem;
+        color: #6c757d;
+        font-size: 0.85rem;
+        font-style: italic;
+    }
+</style>
+@endpush
 <div class="card shadow">
     <div class="card-header">
         <h6 class="m-0 font-weight-bold text-primary">Form Tambah Arsip</h6>
@@ -27,17 +71,31 @@
             <div class="row">
                 <!-- Kode Klasifikasi -->
                 <div class="col-md-6 mb-3">
-                    <label for="kode_klasifikasi_id" class="form-label">Kode Klasifikasi <span class="text-danger">*</span></label>
-                    <select class="form-control @error('kode_klasifikasi_id') is-invalid @enderror" name="kode_klasifikasi_id" required>
-                        <option value="">Pilih Kode Klasifikasi</option>
-                        @foreach($kodeKlasifikasiOptions as $kode)
-                            <option value="{{ $kode->id }}" {{ old('kode_klasifikasi_id') == $kode->id ? 'selected' : '' }}>
-                                {{ $kode->kode }} - {{ $kode->uraian }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <label for="kode_klasifikasi_search" class="form-label">Kode Klasifikasi <span class="text-danger">*</span></label>
+
+                    <div class="searchable-select-wrapper position-relative">
+                        <input type="text"
+                            id="kode_klasifikasi_search"
+                            class="form-control @error('kode_klasifikasi_id') is-invalid @enderror"
+                            placeholder="Ketik untuk mencari kode/uraian..."
+                            autocomplete="off">
+
+                        <input type="hidden" id="kode_klasifikasi_id" name="kode_klasifikasi_id"
+                            value="{{ old('kode_klasifikasi_id') }}" required>
+
+                        <div id="kode_klasifikasi_dropdown" class="searchable-select-dropdown d-none">
+                            @foreach($kodeKlasifikasiOptions as $kode)
+                                <div class="searchable-select-option"
+                                    data-value="{{ $kode->id }}"
+                                    data-label="{{ $kode->kode }} - {{ $kode->uraian }}">
+                                    {{ $kode->kode }} - {{ $kode->uraian }}
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
                     @error('kode_klasifikasi_id')
-                        <div class="invalid-feedback">{{ $message }}</div>
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
                 </div>
 
@@ -242,7 +300,7 @@
                     <label for="file_dokumen" class="form-label">File Dokumen <span class="text-muted">(Opsional)</span></label>
                     <input type="file" class="form-control @error('file_dokumen') is-invalid @enderror" 
                         name="file_dokumen" accept=".pdf,.jpg,.jpeg,.png">
-                    <small class="text-muted">Format: PDF, JPG, JPEG, PNG (Maks: 10MB)</small>
+                    <small class="text-muted">Format: PDF, JPG, JPEG, PNG (Maks: 100MB)</small>
                     @error('file_dokumen')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -446,5 +504,138 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput   = document.getElementById('kode_klasifikasi_search');
+    const hiddenInput   = document.getElementById('kode_klasifikasi_id');
+    const dropdown      = document.getElementById('kode_klasifikasi_dropdown');
+    const options       = Array.from(dropdown.querySelectorAll('.searchable-select-option'));
 
+    if (!searchInput || !hiddenInput || !dropdown) return;
+
+    // Kalau ada old value (validasi gagal), tampilkan labelnya di input text
+    if (hiddenInput.value) {
+        const selected = options.find(opt => opt.dataset.value === hiddenInput.value);
+        if (selected) {
+            searchInput.value = selected.dataset.label;
+        }
+    }
+
+    function openDropdown() {
+        dropdown.classList.remove('d-none');
+    }
+
+    function closeDropdown() {
+        dropdown.classList.add('d-none');
+    }
+
+    function filterOptions() {
+        const keyword = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        options.forEach(function (opt) {
+            const label = opt.dataset.label.toLowerCase();
+            const match = label.includes(keyword);
+            opt.classList.toggle('d-none', !match);
+            if (match) visibleCount++;
+        });
+
+        // Handle pesan "tidak ditemukan"
+        let emptyMsg = dropdown.querySelector('.searchable-select-empty');
+        if (visibleCount === 0) {
+            if (!emptyMsg) {
+                emptyMsg = document.createElement('div');
+                emptyMsg.className = 'searchable-select-empty';
+                emptyMsg.textContent = 'Kode klasifikasi tidak ditemukan';
+                dropdown.appendChild(emptyMsg);
+            }
+        } else if (emptyMsg) {
+            emptyMsg.remove();
+        }
+    }
+
+    // Buka dropdown & filter saat mengetik
+    searchInput.addEventListener('input', function () {
+        openDropdown();
+        filterOptions();
+        // Kalau user ngetik ulang, kosongkan value terpilih sampai pilih lagi
+        hiddenInput.value = '';
+    });
+
+    // Buka dropdown saat fokus/klik
+    searchInput.addEventListener('focus', function () {
+        openDropdown();
+        filterOptions();
+    });
+
+    // Pilih opsi
+    dropdown.addEventListener('click', function (e) {
+        const target = e.target.closest('.searchable-select-option');
+        if (!target) return;
+
+        searchInput.value = target.dataset.label;
+        hiddenInput.value = target.dataset.value;
+        closeDropdown();
+    });
+
+    // Tutup dropdown kalau klik di luar
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.searchable-select-wrapper')) {
+            closeDropdown();
+        }
+    });
+
+    // Navigasi keyboard (opsional tapi enak dipakai)
+    let activeIndex = -1;
+
+    searchInput.addEventListener('keydown', function (e) {
+        const visibleOptions = options.filter(opt => !opt.classList.contains('d-none'));
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = Math.min(activeIndex + 1, visibleOptions.length - 1);
+            updateActive(visibleOptions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = Math.max(activeIndex - 1, 0);
+            updateActive(visibleOptions);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex >= 0 && visibleOptions[activeIndex]) {
+                visibleOptions[activeIndex].click();
+            }
+        } else if (e.key === 'Escape') {
+            closeDropdown();
+        }
+    });
+
+    function updateActive(visibleOptions) {
+        visibleOptions.forEach(opt => opt.classList.remove('active'));
+        if (visibleOptions[activeIndex]) {
+            visibleOptions[activeIndex].classList.add('active');
+            visibleOptions[activeIndex].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    // Validasi sebelum submit: pastikan hidden input terisi
+    const form = document.getElementById('arsipForm');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!hiddenInput.value) {
+                e.preventDefault();
+                searchInput.classList.add('is-invalid');
+                searchInput.focus();
+
+                let feedback = searchInput.parentElement.querySelector('.invalid-feedback');
+                if (!feedback) {
+                    feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback d-block';
+                    feedback.textContent = 'Silakan pilih kode klasifikasi dari daftar.';
+                    searchInput.parentElement.appendChild(feedback);
+                }
+            }
+        });
+    }
+});
+</script>
 @endpush

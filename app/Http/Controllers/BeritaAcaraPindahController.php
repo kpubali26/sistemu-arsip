@@ -223,11 +223,11 @@ public function kirim(Request $request, BeritaAcaraPindah $berita_acara)
         }
 
         $validator = \Validator::make($request->all(), [
-            'file_bap' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240'
+            'file_bap' => 'required|file|mimes:pdf,jpg,jpeg,png|max:102400'
         ], [
             'file_bap.required' => 'File Berita Acara yang sudah ditandatangani wajib diunggah.',
             'file_bap.mimes' => 'File harus berformat PDF, JPG, JPEG, atau PNG.',
-            'file_bap.max' => 'Ukuran file maksimal 10 MB.',
+            'file_bap.max' => 'Ukuran file maksimal 100 MB.',
         ]);
 
         if ($validator->fails()) {

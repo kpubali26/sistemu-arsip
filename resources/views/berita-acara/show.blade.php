@@ -220,7 +220,7 @@
                                class="form-control" 
                                accept=".pdf,.jpg,.jpeg,.png" 
                                required>
-                        <small class="text-muted">Format: PDF, JPG, JPEG, PNG (Max 10 MB)</small>
+                        <small class="text-muted">Format: PDF, JPG, JPEG, PNG (Max 100 MB)</small>
                         <div id="fileInfo" class="mt-2"></div>
                     </div>
                     <div class="alert alert-warning">
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (file) {
                 const sizeMB = (file.size / 1024 / 1024).toFixed(2);
                 if (file.size > 10 * 1024 * 1024) {
-                    fileInfo.innerHTML = `<div class="text-danger small">File terlalu besar (${sizeMB} MB). Maksimal 10 MB.</div>`;
+                    fileInfo.innerHTML = `<div class="text-danger small">File terlalu besar (${sizeMB} MB). Maksimal 100 MB.</div>`;
                     this.value = '';
                     submitBtn.disabled = true;
                     return;

@@ -485,13 +485,13 @@ public function import(Request $request)
             'required',
             'file',
             'mimes:xlsx,xls',
-            'max:10240',
+            'max:102400',
         ],
     ], [
         'file.required' => 'File Excel wajib dipilih.',
         'file.file' => 'File yang diupload tidak valid.',
         'file.mimes' => 'File harus berformat XLS atau XLSX.',
-        'file.max' => 'Ukuran file maksimal 10 MB.',
+        'file.max' => 'Ukuran file maksimal 100 MB.',
     ]);
 
     DB::beginTransaction();

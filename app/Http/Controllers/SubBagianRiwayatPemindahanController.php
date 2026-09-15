@@ -183,9 +183,9 @@ class SubBagianRiwayatPemindahanController extends Controller
             'media_arsip'          => 'required|string|max:50',
  
             // Upload BA baru bersifat OPSIONAL — tidak wajib
-            'file_berita_acara_baru' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'file_berita_acara_baru' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:102400',
             'jenis_dokumen' => 'nullable|in:pdf,link',
-            'file_dokumen_baru' => 'nullable|file|mimes:pdf|max:10240',
+            'file_dokumen_baru' => 'nullable|file|mimes:pdf|max:102400',
             'link_folder' => 'nullable|url|max:500',
  
             // Nomor BAP (berita acara pindah) — opsional, hanya jika perlu diperbaiki

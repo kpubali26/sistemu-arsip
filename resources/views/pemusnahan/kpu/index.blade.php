@@ -108,7 +108,7 @@
                     <div class="form-text mt-2">
                         <small class="text-muted">
                             <i class="bi bi-info-circle"></i> 
-                            Format: PDF, DOC, DOCX, JPG, PNG | Maksimal 10MB
+                            Format: PDF, DOC, DOCX, JPG, PNG | Maksimal 100MB
                         </small>
                     </div>
                     @error('file_persetujuan_kpu')

@@ -215,7 +215,7 @@
                                 <input type="file" name="file_berita_acara_baru" class="form-control">
                                 <small class="text-muted">
                                     Kosongkan jika tidak ingin mengganti berkas berita acara yang sudah ada.
-                                    Format: PDF, JPG, JPEG, PNG (Maks: 10MB)
+                                    Format: PDF, JPG, JPEG, PNG (Maks: 100MB)
                                 </small>
                             </div> --}}
                             <div class="row">
@@ -254,7 +254,7 @@
                                 </small>
                                     <div id="wrap_upload_pdf">
                                         <input type="file" name="file_dokumen_baru" class="form-control @error('file_dokumen_baru') is-invalid @enderror" accept=".pdf">
-                                        <small class="text-muted">Format: PDF saja. Maks 10MB. Kosongkan jika tidak ingin mengganti.</small>
+                                        <small class="text-muted">Format: PDF saja. Maks 100MB. Kosongkan jika tidak ingin mengganti.</small>
                                         @error('file_dokumen_baru')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -276,7 +276,7 @@
                                     <input type="file" name="file_berita_acara_baru" class="form-control">
                                     <small class="text-muted">
                                         Kosongkan jika tidak ingin mengganti berkas berita acara yang sudah ada.
-                                        Format: PDF, JPG, JPEG, PNG (Maks: 10MB)
+                                        Format: PDF, JPG, JPEG, PNG (Maks: 100MB)
                                     </small>
                                 </div>
                             </div>

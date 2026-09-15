@@ -72,7 +72,7 @@
                     <br>
                     Format: PDF, JPG, JPEG, PNG.
                     <br>
-                    <strong>Ukuran file maksimal 10 MB.</strong>
+                    <strong>Ukuran file maksimal 100 MB.</strong>
                 </small>
 
                 @error('file_bap')
