@@ -42,64 +42,73 @@ class ArsipExport implements
     /**
      * Query: jika ada selectedIds, hanya ambil data itu.
      * Jika tidak, gunakan semua filter yang sudah ada.
+     *
+     * PERBAIKAN: eager load relasi 'rak' dan 'box' supaya kolom
+     * nomor_rak & nomor_box bisa diambil lewat relasi, bukan
+     * lewat kolom langsung di tabel arsips yang tidak ada.
      */
-   public function query()
-{
-    $query = Arsip::query()->with(['kodeKlasifikasi', 'subBagian']);
+    public function query()
+    {
+        $query = Arsip::query()->with(['kodeKlasifikasi', 'subBagian', 'rak', 'box']);
 
-    // ==========================================
-    // KONDISIONAL BERDASARKAN SUB_BAGIAN_ID USER
-    // ==========================================
-    if (auth()->user()->sub_bagian_id) {
-        // USER BIASA (punya sub_bagian_id)
-        // Hanya arsip milik sub_bagiannya DAN status_pindah = 'BELUM'
-        $query->where('sub_bagian_id', auth()->user()->sub_bagian_id)
-              ->where('status_pindah', 'BELUM');
-    } else {
-        // ADMIN (tidak punya sub_bagian_id)
-        // Bisa disesuaikan: misal export semua arsip atau dengan filter status tertentu
-        // Contoh: tetap gunakan whereIn seperti sebelumnya
-        $query->whereIn('status_pindah', ['DIPINDAHKAN', 'LANGSUNG']);
-        // Atau jika ingin export semua tanpa filter status_pindah:
-        // $query->whereNotNull('id'); // semua data
-    }
+        // ==========================================
+        // KONDISIONAL BERDASARKAN SUB_BAGIAN_ID USER
+        // ==========================================
+        if (auth()->user()->sub_bagian_id) {
+            // USER BIASA (punya sub_bagian_id)
+            // Hanya arsip milik sub_bagiannya DAN status_pindah = 'BELUM'
+            $query->where('sub_bagian_id', auth()->user()->sub_bagian_id)
+                  ->where('status_pindah', 'BELUM');
+        } else {
+            // ADMIN (tidak punya sub_bagian_id)
+            // Bisa disesuaikan: misal export semua arsip atau dengan filter status tertentu
+            // Contoh: tetap gunakan whereIn seperti sebelumnya
+            $query->whereIn('status_pindah', ['DIPINDAHKAN', 'LANGSUNG']);
+            // Atau jika ingin export semua tanpa filter status_pindah:
+            // $query->whereNotNull('id'); // semua data
+        }
 
-    // ==========================================
-    // JIKA ADA SELECTED IDS (checkbox dari user)
-    // ==========================================
-    if (!empty($this->selectedIds)) {
-        $query->whereIn('id', $this->selectedIds);
+        // ==========================================
+        // JIKA ADA SELECTED IDS (checkbox dari user)
+        // ==========================================
+        if (!empty($this->selectedIds)) {
+            $query->whereIn('id', $this->selectedIds);
+            return $query;
+        }
+
+        // ==========================================
+        // FILTER TAMBAHAN DARI REQUEST
+        // ==========================================
+        if ($this->request->filled('tahun_arsip')) {
+            $query->where('tahun_arsip', $this->request->tahun_arsip);
+        }
+        if ($this->request->filled('status_arsip')) {
+            $query->where('status_arsip', $this->request->status_arsip);
+        }
+        if ($this->request->filled('sub_bagian_id')) {
+            $query->where('sub_bagian_id', $this->request->sub_bagian_id);
+        }
+        if ($this->request->filled('kode_klasifikasi_id')) {
+            $query->where('kode_klasifikasi_id', $this->request->kode_klasifikasi_id);
+        }
+
+        // PERBAIKAN: filter nomor_rak & nomor_box seharusnya mengarah
+        // ke rak_id / box_id (FK), bukan ke kolom nomor_rak/nomor_box
+        // yang tidak ada di tabel arsips.
+        if ($this->request->filled('nomor_rak')) {
+            $query->where('rak_id', $this->request->nomor_rak);
+        }
+        if ($this->request->filled('nomor_box')) {
+            $query->where('box_id', $this->request->nomor_box);
+        }
+
+        if ($this->request->filled('keterangan')) {
+            $query->where('keterangan', $this->request->keterangan);
+        }
+
+        $query->orderBy('tahun_arsip', 'asc');
         return $query;
     }
-
-    // ==========================================
-    // FILTER TAMBAHAN DARI REQUEST
-    // ==========================================
-    if ($this->request->filled('tahun_arsip')) {
-        $query->where('tahun_arsip', $this->request->tahun_arsip);
-    }
-    if ($this->request->filled('status_arsip')) {
-        $query->where('status_arsip', $this->request->status_arsip);
-    }
-    if ($this->request->filled('sub_bagian_id')) {
-        $query->where('sub_bagian_id', $this->request->sub_bagian_id);
-    }
-    if ($this->request->filled('kode_klasifikasi_id')) {
-        $query->where('kode_klasifikasi_id', $this->request->kode_klasifikasi_id);
-    }
-    if ($this->request->filled('nomor_rak')) {
-        $query->where('nomor_rak', $this->request->nomor_rak);
-    }
-    if ($this->request->filled('nomor_box')) {
-        $query->where('nomor_box', $this->request->nomor_box);
-    }
-    if ($this->request->filled('keterangan')) {
-        $query->where('keterangan', $this->request->keterangan);
-    }
-
-    $query->orderBy('tahun_arsip', 'asc');
-    return $query;
-}
 
     /**
      * Header kolom hanya sesuai dengan kolom yang dipilih user.
@@ -114,6 +123,7 @@ class ArsipExport implements
             'tahun_arsip'      => 'Tahun',
             'nomor_rak'        => 'Rak',
             'nomor_box'        => 'Box',
+            'lokasi_arsip'     => 'Lokasi Arsip',
             'no_sampul'        => 'No Sampul',
             'aktif_sampai'     => 'Aktif Sampai',
             'inaktif_sampai'   => 'Inaktif Sampai',
@@ -135,6 +145,14 @@ class ArsipExport implements
 
     /**
      * Data per baris: hanya kolom yang dipilih.
+     *
+     * PERBAIKAN: nomor_rak & nomor_box diambil dari relasi rak()/box(),
+     * bukan dari properti langsung $arsip->nomor_rak / $arsip->nomor_box
+     * yang tidak ada di model Arsip (yang ada rak_id / box_id).
+     *
+     * NOTE: sesuaikan nama field 'nomor_rak' pada MasterRak dan
+     * 'nomor_box' pada MasterBox dengan nama kolom sebenarnya
+     * di masing-masing tabel (misal bisa jadi 'kode_rak', 'nama_rak', dst).
      */
     public function map($arsip): array
     {
@@ -146,8 +164,9 @@ class ArsipExport implements
                 'uraian_arsip'     => $arsip->uraian_arsip ?? '-',
                 'jumlah'           => $this->formatJumlah($arsip),
                 'tahun_arsip'      => $arsip->tahun_arsip ?? '-',
-                'nomor_rak'        => $arsip->nomor_rak ?? '-',
-                'nomor_box'        => $arsip->nomor_box ?? '-',
+                'nomor_rak'        => $arsip->rak->nomor_rak ?? '-',
+                'nomor_box'        => $arsip->box->nomor_box ?? '-',
+                'lokasi_arsip'     => $arsip->lokasi_arsip ? \App\Models\Arsip::getLokasiArsipLabel($arsip->lokasi_arsip) : '-',
                 'no_sampul'        => $arsip->no_sampul ?? '-',
                 'aktif_sampai'     => $arsip->aktif_sampai ? \Carbon\Carbon::parse($arsip->aktif_sampai)->format('d-m-Y') : '-',
                 'inaktif_sampai'   => $arsip->inaktif_sampai ? \Carbon\Carbon::parse($arsip->inaktif_sampai)->format('d-m-Y') : '-',
@@ -224,6 +243,16 @@ class ArsipExport implements
                 // Header berada di baris 3 (baris 2 kosong)
                 $headerRow = 3;
                 $lastRow = $sheet->getHighestRow();
+
+                // ===== 1b. Bold + Center untuk baris heading =====
+                $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")
+                    ->applyFromArray([
+                        'font' => ['bold' => true],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_CENTER,
+                            'vertical' => Alignment::VERTICAL_CENTER
+                        ]
+                    ]);
 
                 // ===== 2. Border untuk seluruh data =====
                 $sheet->getStyle("A{$headerRow}:{$lastColumn}{$lastRow}")
