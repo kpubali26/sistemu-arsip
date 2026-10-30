@@ -1,4 +1,3 @@
-
 @extends('layouts.app')
 
 @section('page-title', 'Detail Arsip')
@@ -37,7 +36,7 @@
                     </tr>
                     <tr>
                         <td><strong>Status Arsip</strong></td>
-                        <td>: 
+                        <td>:
                             @php
                                 $statusColors = [
                                     'AKTIF' => 'success',
@@ -56,8 +55,8 @@
                             @php
                                 $pindahColors = [
                                     'BELUM PINDAH' => 'secondary',
-                                    'DIAJUKAN'  => 'info',
-                                    'DIPINDAHKAN'     => 'success',
+                                    'DIAJUKAN'     => 'info',
+                                    'DIPINDAHKAN'  => 'success',
                                 ];
                                 $pindahColor = $pindahColors[$arsip->status_pindah] ?? 'secondary';
                             @endphp
@@ -73,7 +72,7 @@
                     </tr>
                 </table>
             </div>
-            
+
             <!-- Informasi Fisik -->
             <div class="col-md-6">
                 <h6 class="font-weight-bold text-primary mb-3">Informasi Fisik & Lokasi</h6>
@@ -92,13 +91,13 @@
                     </tr>
                     <tr>
                         <td><strong>Lokasi Arsip</strong></td>
-                        <td>: 
+                        <td>:
                             @php
                                 $lokasiLabels = [
-                                    'RUANG_SUBBAGIAN_KEUANGAN_UMUM_LOGISTIK' => 'Ruang Subbagian Keuangan, Umum & Logistik',
-        'RUANG_SUBBAGIAN_PARTISIPASI_MASYARAKAT_SDM' => 'Ruang Subbagian Parmas & SDM',
-        'RUANG_SUBBAGIAN_PERENCANAAN_DATA_INFORMASI' => 'Ruang Subbagian Perencanaan, Data & Informasi',
-        'RUANG_SUBBAGIAN_TEKNIS_HUKUM' => 'Ruang Subbagian Teknis dan Hukum',
+                                    'RUANG_SUBBAGIAN_KEUANGAN_UMUM_LOGISTIK'      => 'Ruang Subbagian Keuangan, Umum & Logistik',
+                                    'RUANG_SUBBAGIAN_PARTISIPASI_MASYARAKAT_SDM'  => 'Ruang Subbagian Parmas & SDM',
+                                    'RUANG_SUBBAGIAN_PERENCANAAN_DATA_INFORMASI'  => 'Ruang Subbagian Perencanaan, Data & Informasi',
+                                    'RUANG_SUBBAGIAN_TEKNIS_HUKUM'                => 'Ruang Subbagian Teknis dan Hukum',
                                 ];
                                 $lokasiLabel = $lokasiLabels[$arsip->lokasi_arsip] ?? $arsip->lokasi_arsip ?? '-';
                             @endphp
@@ -119,7 +118,7 @@
                     </tr>
                     <tr>
                         <td><strong>Kondisi Fisik</strong></td>
-                        <td>: 
+                        <td>:
                             @php
                                 $kondisiColors = [
                                     'BAIK' => 'success',
@@ -135,7 +134,7 @@
                     </tr>
                     <tr>
                         <td><strong>Media Arsip</strong></td>
-                        <td>: 
+                        <td>:
                             @php
                                 $mediaColors = [
                                     'TEKSTUAL' => 'primary',
@@ -175,52 +174,55 @@
                         </td>
                     </tr>
                     <tr>
-    <td><strong>File Dokumen</strong></td>
-    <td>:
+                        <td><strong>File Dokumen</strong></td>
+                        <td>:
+                            {{-- Arsip yang sudah dimusnahkan tidak boleh dilihat --}}
+                            @if($arsip->status_arsip == 'MUSNAH')
+                                <span class="text-danger">
+                                    Dokumen arsip yang telah dimusnahkan tidak dapat ditampilkan.
+                                </span>
 
-        {{-- Arsip yang sudah dimusnahkan tidak boleh dilihat --}}
-        @if($arsip->status_arsip == 'MUSNAH')
-            <span class="text-danger">
-                Dokumen arsip yang telah dimusnahkan tidak dapat ditampilkan.
-            </span>
+                            @elseif($arsip->file_dokumen || $arsip->link_foto)
 
-        @elseif($arsip->file_dokumen || $arsip->link_foto)
+                                @if(auth()->user()->canDownloadArsip($arsip))
+                                    <div>
+                                        @if($arsip->file_dokumen)
+                                            {{-- Dibuka lewat controller (cek hak akses), bukan URL /storage langsung --}}
+                                            <a href="{{ route('subbagian.arsip.file.view', $arsip) }}"
+                                               target="_blank"
+                                               class="btn btn-primary btn-sm">
+                                                Lihat Dokumen
+                                            </a>
+                                            <a href="{{ route('subbagian.arsip.downloadFile', $arsip) }}"
+                                               class="btn btn-outline-primary btn-sm">
+                                                Unduh
+                                            </a>
+                                        @elseif($arsip->link_foto)
+                                            <a href="{{ $arsip->link_foto }}"
+                                               target="_blank"
+                                               class="btn btn-primary btn-sm">
+                                                Lihat Dokumen
+                                            </a>
+                                        @endif
 
-            @if(auth()->user()->canDownloadArsip($arsip))
-                <div>
-                    @if($arsip->file_dokumen)
-                         <a href="{{ asset('storage/arsip/'.$arsip->file_dokumen) }}"
-                           target="_blank"
-                           class="btn btn-primary btn-sm">
-                            Lihat/Unduh Dokumen
-                        </a>
-                    @elseif($arsip->link_foto)
-                        <a href="{{ $arsip->link_foto }}"
-                           target="_blank"
-                           class="btn btn-primary btn-sm">
-                            Lihat Dokumen
-                        </a>
-                    @endif
+                                        <small class="text-muted d-block mt-1">
+                                            {{ $arsip->file_dokumen ?? $arsip->link_foto }}
+                                        </small>
+                                    </div>
+                                @else
+                                    <span class="text-muted">
+                                        File terbatas. Tidak dapat dilihat.
+                                    </span>
+                                @endif
 
-                    <small class="text-muted d-block mt-1">
-                        {{ $arsip->file_dokumen ?? $arsip->link_foto }}
-                    </small>
-                </div>
-            @else
-                <span class="text-muted">
-                    File terbatas. Tidak dapat dilihat.
-                </span>
-            @endif
-
-        @else
-            <span class="text-muted">Tidak ada file</span>
-        @endif
-
-    </td>
-</tr>
+                            @else
+                                <span class="text-muted">Tidak ada file</span>
+                            @endif
+                        </td>
+                    </tr>
                 </table>
             </div>
-            
+
             <!-- Informasi Retensi -->
             <div class="col-md-6">
                 <h6 class="font-weight-bold text-primary mb-3">Informasi Retensi</h6>
@@ -236,23 +238,19 @@
                     @if($arsip->tanggal_referensi)
                     <tr>
                         <td><strong>Tanggal Referensi</strong></td>
-                        <td>: {{ $arsip->tanggal_referensi ? \Carbon\Carbon::parse($arsip->tanggal_referensi)->format('d/m/Y') : '-' }}</td>
+                        <td>: {{ \Carbon\Carbon::parse($arsip->tanggal_referensi)->format('d/m/Y') }}</td>
                     </tr>
                     @endif
                     <tr>
                         <td><strong>Aktif Sampai</strong></td>
-                        <td>: 
+                        <td>:
                             @if($arsip->aktif_sampai)
                                 {{ \Carbon\Carbon::parse($arsip->aktif_sampai)->format('d/m/Y') }}
-                                @php
-                                    $aktifDate = \Carbon\Carbon::parse($arsip->aktif_sampai);
-                                    $now = \Carbon\Carbon::now();
-                                    if($now > $aktifDate) {
-                                        echo '<span class="badge bg-danger ms-2">Lewat</span>';
-                                    } else {
-                                        echo '<span class="badge bg-success ms-2">Aktif</span>';
-                                    }
-                                @endphp
+                                @if(\Carbon\Carbon::now()->gt(\Carbon\Carbon::parse($arsip->aktif_sampai)))
+                                    <span class="badge bg-danger ms-2">Lewat</span>
+                                @else
+                                    <span class="badge bg-success ms-2">Aktif</span>
+                                @endif
                             @else
                                 -
                             @endif
@@ -260,18 +258,14 @@
                     </tr>
                     <tr>
                         <td><strong>Inaktif Sampai</strong></td>
-                        <td>: 
+                        <td>:
                             @if($arsip->inaktif_sampai)
                                 {{ \Carbon\Carbon::parse($arsip->inaktif_sampai)->format('d/m/Y') }}
-                                @php
-                                    $inaktifDate = \Carbon\Carbon::parse($arsip->inaktif_sampai);
-                                    $now = \Carbon\Carbon::now();
-                                    if($now > $inaktifDate) {
-                                        echo '<span class="badge bg-danger ms-2">Lewat</span>';
-                                    } else {
-                                        echo '<span class="badge bg-warning ms-2">Akan Datang</span>';
-                                    }
-                                @endphp
+                                @if(\Carbon\Carbon::now()->gt(\Carbon\Carbon::parse($arsip->inaktif_sampai)))
+                                    <span class="badge bg-danger ms-2">Lewat</span>
+                                @else
+                                    <span class="badge bg-warning ms-2">Akan Datang</span>
+                                @endif
                             @else
                                 -
                             @endif
@@ -279,7 +273,7 @@
                     </tr>
                     <tr>
                         <td><strong>Keterangan JRA</strong></td>
-                        <td>: 
+                        <td>:
                             @php
                                 $jraColors = [
                                     'PERMANEN' => 'info',
@@ -292,7 +286,7 @@
                     </tr>
                 </table>
             </div>
-            
+
             <!-- Informasi Sistem -->
             <div class="col-md-6">
                 <h6 class="font-weight-bold text-primary mb-3">Informasi Sistem</h6>
@@ -303,7 +297,7 @@
                     </tr>
                     <tr>
                         <td><strong>Dibuat Oleh</strong></td>
-                        <td>: {{ $arsip->created_by ? \App\Models\User::find($arsip->created_by)->name ?? 'System' : 'System' }}</td>
+                        <td>: {{ $arsip->created_by ? (\App\Models\User::find($arsip->created_by)->name ?? 'System') : 'System' }}</td>
                     </tr>
                     <tr>
                         <td><strong>Tanggal Dibuat</strong></td>
@@ -315,7 +309,7 @@
                     </tr>
                 </table>
             </div>
-            
+
             <!-- Catatan Tambahan -->
             @if($arsip->aktif_tahun && stripos($arsip->aktif_tahun, 'SETELAH') !== false && !$arsip->tanggal_referensi)
             <div class="col-md-12 mt-3">
@@ -325,7 +319,7 @@
             </div>
             @endif
         </div>
-        
+
         <div class="mt-4 pt-3 border-top">
             <div class="d-flex gap-2 align-items-center">
                 <a href="{{ session('arsip_return_url') ?? url()->previous() ?? route('subbagian.arsip.index') }}"

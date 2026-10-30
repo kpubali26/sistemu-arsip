@@ -18,6 +18,7 @@ use App\Models\BeritaAcaraDetail;
 use Illuminate\Support\Facades\DB;
 use App\Models\MasterRak;
 use App\Models\MasterBox;
+use Illuminate\Support\Facades\Log;
 
 
 class SubBagianArsipController extends Controller
@@ -346,13 +347,13 @@ class SubBagianArsipController extends Controller
     ));
 }
 
-    public function store(Request $request)
+       public function store(Request $request)
     {
         $user = Auth::user();
 
         $validated = $request->validate([
-            'kode_klasifikasi_id'=>'required|exists:kode_klasifikasis,id',
-            'uraian_arsip'=>'required|string|min:30',
+            'kode_klasifikasi_id'  => 'required|exists:kode_klasifikasis,id',
+            'uraian_arsip'         => 'required|string|min:30',
             'tahun_arsip' => [
                 'required',
                 'integer',
@@ -367,68 +368,46 @@ class SubBagianArsipController extends Controller
                     }
                 },
             ],
-            'tanggal_arsip'=>'required|date',
-            'jumlah_berkas'=>'required|integer|min:1',
-            'satuan_arsip'=>'required|in:BENDEL,LEMBAR',
+            'tanggal_arsip'        => 'required|date',
+            'jumlah_berkas'        => 'required|integer|min:1',
+            'satuan_arsip'         => 'required|in:BENDEL,LEMBAR',
             'klasifikasi_keamanan' => 'required|in:Biasa/Terbuka,Terbatas,Rahasia',
-
-            // 'aktif_tahun'=>'nullable|string|max:100',
-            // 'inaktif_tahun'=>'nullable|string|max:100',
-            // 'tanggal_referensi'=>'nullable|date',
-            // 'keterangan_jra'=>'nullable|in:PERMANEN,MUSNAH',
-             'rak_id' => 'required|exists:master_raks,id',
-            'box_id' => 'required|exists:master_box,id',
-            'nomor_sampul'=>'nullable|string|max:100',
-            'lokasi_arsip' => 'required|string|max:100',
-            'tingkat_perkembangan'=>'nullable|in:ASLI,COPY,SALINAN',
-            'keterangan'=>'nullable|in:BAIK,RUSAK,HILANG',
-            'media_arsip'=>'nullable|string|max:255',
-            'file_dokumen' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:102400',
-            'link_foto'    => 'nullable|url|max:1000',
+            'rak_id'               => 'required|exists:master_raks,id',
+            'box_id'               => 'required|exists:master_box,id',
+            'nomor_sampul'         => 'nullable|string|max:100',
+            'lokasi_arsip'         => 'required|string|max:100',
+            'tingkat_perkembangan' => 'nullable|in:ASLI,COPY,SALINAN',
+            'keterangan'           => 'nullable|in:BAIK,RUSAK,HILANG',
+            'media_arsip'          => 'nullable|string|max:255',
+            'uploaded_file'        => 'nullable|string|max:255',
+            'link_foto'            => 'nullable|url|max:1000',
         ]);
 
+        unset($validated['uploaded_file']);
+
         $validated['sub_bagian_id'] = $user->sub_bagian_id;
-        $validated['created_by'] = $user->id;
+        $validated['created_by']    = $user->id;
         $validated['tanggal_masuk'] = now()->format('Y-m-d');
         $validated['status_pindah'] = 'BELUM';
-        // $validated['lokasi_arsip'] = 'SUB_BAGIAN';
+        $validated['lokasi_arsip']  = $this->getLokasiArsip($user);
+        $validated['link_foto']     = $request->link_foto;
 
-        $user = auth()->user();
+        // File hasil upload bertahap -> disk 'public', folder 'arsip'
+        if ($request->filled('uploaded_file')) {
+            $fileName = ChunkUploadController::moveToArsip($request->uploaded_file);
 
-        $namaSub = $user->subBagian->nama_sub_bagian ?? null;
+            if (! $fileName) {
+                return back()
+                    ->withInput($request->except(['uploaded_file', 'uploaded_file_name']))
+                    ->withErrors(['file_dokumen' => 'File upload tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang.']);
+            }
 
-        $mapLokasi = [
-            'Sub Bagian Keuangan, Umum dan Logistik' => 'RUANG_SUBBAGIAN_KEUANGAN_UMUM_LOGISTIK',
-            'Sub Bagian Partisipasi, Hubungan Masyarakat dan SDM' => 'RUANG_SUBBAGIAN_PARTISIPASI_MASYARAKAT_SDM',
-            'Sub Bagian Perencanaan, Data, dan Informasi' => 'RUANG_SUBBAGIAN_PERENCANAAN_DATA_INFORMASI',
-            'Sub Bagian Teknis Penyelenggaraan Pemilu dan Hukum' => 'RUANG_SUBBAGIAN_TEKNIS_HUKUM',
-        ];
-
-        $validated['lokasi_arsip'] = $mapLokasi[$namaSub] ?? null;
-        $validated['link_foto'] = $request->link_foto;
-
-        if($request->hasFile('file_dokumen')){
-            $file=$request->file('file_dokumen');
-            $fileName = time().'_'.$file->getClientOriginalName();
-            $file->storeAs('arsip',$fileName,'public');
             $validated['file_dokumen'] = $fileName;
         }
 
-        // $perhitungan = (new \App\Http\Controllers\ArsipController)->hitungRetensi(
-        //     $validated['aktif_tahun'] ?? null,
-        //     $validated['inaktif_tahun'] ?? null,
-        //     $validated['keterangan_jra'],
-        //     $validated['tanggal_arsip'],
-        //     $validated['tanggal_referensi'] ?? null
-        // );
-
-        // $validated['aktif_sampai']=$perhitungan['aktif_sampai'];
-        // $validated['inaktif_sampai']=$perhitungan['inaktif_sampai'];
-        // $validated['status_arsip']=$perhitungan['status_arsip'];
-
         Arsip::create($validated);
 
-        return redirect()->route('subbagian.arsip.index')->with('success','Arsip berhasil ditambahkan.');
+        return redirect()->route('subbagian.arsip.index')->with('success', 'Arsip berhasil ditambahkan.');
     }
 
   public function edit(Arsip $arsip)
@@ -496,16 +475,36 @@ if (!$user->canViewArsip($arsip)) {
         return Storage::disk('public')->download($path);
     }
 
-    public function update(Request $request, Arsip $arsip)
+        public function viewFile(Arsip $arsip)
     {
-         $this->authorizeSubBagianArsip($arsip);
-
-    $user = Auth::user();
         $this->authorizeSubBagianArsip($arsip);
 
+        if (! $arsip->file_dokumen) {
+            abort(404, 'File dokumen tidak ditemukan.');
+        }
+
+        // 1. Disk public folder arsip (upload dari halaman sub bagian)
+        if (Storage::disk('public')->exists('arsip/' . $arsip->file_dokumen)) {
+            return Storage::disk('public')->response('arsip/' . $arsip->file_dokumen);
+        }
+
+        // 2. Disk khusus arsip (kalau file diupload lewat halaman admin)
+        if (Storage::disk('arsip')->exists($arsip->file_dokumen)) {
+            return Storage::disk('arsip')->response($arsip->file_dokumen);
+        }
+
+        abort(404, 'File dokumen tidak ditemukan.');
+    }
+
+        public function update(Request $request, Arsip $arsip)
+    {
+        $this->authorizeSubBagianArsip($arsip);
+
+        $user = Auth::user();
+
         $validated = $request->validate([
-            'kode_klasifikasi_id'=>'required|exists:kode_klasifikasis,id',
-            'uraian_arsip'=>'required|string|min:30',
+            'kode_klasifikasi_id'  => 'required|exists:kode_klasifikasis,id',
+            'uraian_arsip'         => 'required|string|min:30',
             'tahun_arsip' => [
                 'required',
                 'integer',
@@ -520,84 +519,78 @@ if (!$user->canViewArsip($arsip)) {
                     }
                 },
             ],
-            'tanggal_arsip'=>'required|date',
-            'jumlah_berkas'=>'required|integer|min:1',
-            'satuan_arsip'=>'required|in:BENDEL,LEMBAR',
+            'tanggal_arsip'        => 'required|date',
+            'jumlah_berkas'        => 'required|integer|min:1',
+            'satuan_arsip'         => 'required|in:BENDEL,LEMBAR',
             'klasifikasi_keamanan' => 'required|in:Biasa/Terbuka,Terbatas,Rahasia',
-
-            // 'aktif_tahun'=>'required|string|max:100',
-            // 'inaktif_tahun'=>'required|string|max:100',
-            // 'tanggal_referensi'=>'nullable|date',
-            // 'keterangan_jra'=>'required|in:PERMANEN,MUSNAH',
-            'rak_id' => 'required|exists:master_raks,id',
-        'box_id' => 'required|exists:master_box,id',
-            'nomor_sampul'=>'nullable|string|max:100',
-            'lokasi_arsip' => 'required|string|max:100',
-            'tingkat_perkembangan'=>'nullable|in:ASLI,COPY,SALINAN',
-            'keterangan'=>'nullable|in:BAIK,RUSAK,HILANG',
-            'media_arsip'=>'nullable|string|max:255',
-           'file_dokumen' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:102400',
-            'hapus_file'=>'nullable|in:0,1',
-            'tangani_duplikat' => 'nullable|in:1',
-            'duplicate_reason' => 'nullable|string|max:1000',
-               'link_foto' => 'nullable|url|max:1000',
+            'rak_id'               => 'required|exists:master_raks,id',
+            'box_id'               => 'required|exists:master_box,id',
+            'nomor_sampul'         => 'nullable|string|max:100',
+            'lokasi_arsip'         => 'required|string|max:100',
+            'tingkat_perkembangan' => 'nullable|in:ASLI,COPY,SALINAN',
+            'keterangan'           => 'nullable|in:BAIK,RUSAK,HILANG',
+            'media_arsip'          => 'nullable|string|max:255',
+            'uploaded_file'        => 'nullable|string|max:255',
+            'hapus_file'           => 'nullable|in:0,1',
+            'tangani_duplikat'     => 'nullable|in:1',
+            'duplicate_reason'     => 'nullable|string|max:1000',
+            'link_foto'            => 'nullable|url|max:1000',
         ]);
+
+        unset($validated['uploaded_file']);
+
+        // Cek alasan duplikat lebih dulu, sebelum menyentuh file
+        if ($request->tangani_duplikat == '1' && ! $request->duplicate_reason) {
+            return back()
+                ->withInput()
+                ->with('error', 'Alasan wajib diisi untuk penanganan duplikat.');
+        }
+
         $validated['lokasi_arsip'] = $this->getLokasiArsip($user);
-         $validated['link_foto'] = $request->link_foto;
-        if(($request->hapus_file??'0')=='1' && $arsip->file_dokumen){
-            Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
-            $validated['file_dokumen']=null;
+        $validated['link_foto']    = $request->link_foto;
+
+        // Hapus file lama bila diminta
+        if (($request->hapus_file ?? '0') == '1' && $arsip->file_dokumen) {
+            Storage::disk('public')->delete('arsip/' . $arsip->file_dokumen);
+            $validated['file_dokumen'] = null;
         }
 
-        if($request->hasFile('file_dokumen')){
-            if($arsip->file_dokumen) Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
-            $file=$request->file('file_dokumen');
-            $fileName = time().'_'.$file->getClientOriginalName();
-            $file->storeAs('arsip',$fileName,'public');
-            $validated['file_dokumen']=$fileName;
+        // File baru hasil upload bertahap -> disk 'public', folder 'arsip'
+        if ($request->filled('uploaded_file')) {
+            $fileName = ChunkUploadController::moveToArsip($request->uploaded_file);
+
+            if (! $fileName) {
+                return back()
+                    ->withInput($request->except(['uploaded_file', 'uploaded_file_name']))
+                    ->withErrors(['file_dokumen' => 'File upload tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang.']);
+            }
+
+            if ($arsip->file_dokumen) {
+                Storage::disk('public')->delete('arsip/' . $arsip->file_dokumen);
+            }
+
+            $validated['file_dokumen'] = $fileName;
         }
 
-        // $perhitungan = (new \App\Http\Controllers\ArsipController)->hitungRetensi(
-        //     $validated['aktif_tahun'] ?? null,
-        //     $validated['inaktif_tahun'] ?? null,
-        //     $validated['keterangan_jra'],
-        //     $validated['tanggal_arsip'],
-        //     $validated['tanggal_referensi'] ?? null
-        // );
-        // $validated['aktif_sampai']=$perhitungan['aktif_sampai'];
-        // $validated['inaktif_sampai']=$perhitungan['inaktif_sampai'];
-        // $validated['status_arsip']=$perhitungan['status_arsip'];
         // =========================
         // PENANGANAN DUPLIKAT
         // =========================
         $validated['duplicate_reason'] = $request->duplicate_reason;
-if ($request->tangani_duplikat == '1') {
 
-    if (!$request->duplicate_reason) {
-        return back()
-            ->withInput()
-            ->with('error', 'Alasan wajib diisi untuk penanganan duplikat.');
-    }
+        if ($request->tangani_duplikat == '1') {
+            $validated['status_pindah'] = 'NON_ARSIP';
+            $validated['is_duplicate']  = 0;
 
-    $validated['status_pindah'] = 'NON_ARSIP';
-    $validated['is_duplicate'] = 0;
-
-    Arsip::where('uraian_arsip', $arsip->uraian_arsip)
-        ->where('tahun_arsip', $arsip->tahun_arsip)
-        ->where('tingkat_perkembangan', $arsip->tingkat_perkembangan)
-        ->where('id', '!=', $arsip->id)
-        ->update([
-            'is_duplicate' => 0
-        ]);
-
-    $validated['duplicate_reason'] = $request->duplicate_reason;
-}
-        // unset($validated['status_pindah']);
-
+            Arsip::where('uraian_arsip', $arsip->uraian_arsip)
+                ->where('tahun_arsip', $arsip->tahun_arsip)
+                ->where('tingkat_perkembangan', $arsip->tingkat_perkembangan)
+                ->where('id', '!=', $arsip->id)
+                ->update(['is_duplicate' => 0]);
+        }
 
         $arsip->update($validated);
 
-        return redirect()->route('subbagian.arsip.index')->with('success','Arsip berhasil diperbarui.');
+        return redirect()->route('subbagian.arsip.index')->with('success', 'Arsip berhasil diperbarui.');
     }
 
     public function destroy(Arsip $arsip)

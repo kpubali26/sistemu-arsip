@@ -28,6 +28,7 @@ use App\Http\Controllers\SatkerController;
 use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\GuideBookController;
 use App\Http\Controllers\SuperAdmin\GuideBookManagementController;
+use App\Http\Controllers\ChunkUploadController;
 
 
 require __DIR__.'/auth.php';
@@ -52,8 +53,11 @@ Route::middleware(['auth', 'nocache'])
 
 Route::middleware(['auth', 'nocache'])->group(function () {
     
-Route::get('/arsip/{arsip}/file', [ArsipController::class, 'viewFile'])
-    ->name('arsip.file');
+   Route::get('arsip/{arsip}/file', [ArsipController::class, 'viewFile'])->name('arsip.file');
+Route::post('arsip/upload/status', [ChunkUploadController::class, 'status'])->name('arsip.upload.status');
+Route::post('arsip/upload/chunk',  [ChunkUploadController::class, 'chunk'])->name('arsip.upload.chunk');
+Route::post('arsip/upload/finish', [ChunkUploadController::class, 'finish'])->name('arsip.upload.finish');
+Route::post('arsip/upload/cancel', [ChunkUploadController::class, 'cancel'])->name('arsip.upload.cancel');
 
 Route::get('/arsip/{arsip}/file/download', [ArsipController::class, 'downloadFile'])
     ->name('arsip.file.download');
@@ -369,7 +373,10 @@ Route::middleware(['auth', 'subbagian'])->prefix('subbagian')->name('subbagian.'
     Route::post('/manajemen-lokasi/box', [LokasiSubBagianController::class, 'storeBox'])->name('manajemen-lokasi.store-box');
     Route::put('/manajemen-lokasi/rak/{id}', [LokasiSubBagianController::class, 'updateRak'])->name('manajemen-lokasi.update-rak');
     Route::delete('/manajemen-lokasi/rak/{id}', [LokasiSubBagianController::class, 'destroyRak'])->name('manajemen-lokasi.destroy-rak');
-
+    Route::post('arsip/upload/status', [ChunkUploadController::class, 'status'])->name('arsip.upload.status');
+    Route::post('arsip/upload/chunk',  [ChunkUploadController::class, 'chunk'])->name('arsip.upload.chunk');
+    Route::post('arsip/upload/finish', [ChunkUploadController::class, 'finish'])->name('arsip.upload.finish');
+    Route::post('arsip/upload/cancel', [ChunkUploadController::class, 'cancel'])->name('arsip.upload.cancel');
     Route::put('/manajemen-lokasi/box/{id}', [LokasiSubBagianController::class, 'updateBox'])->name('manajemen-lokasi.update-box');
     Route::delete('/manajemen-lokasi/box/{id}', [LokasiSubBagianController::class, 'destroyBox'])->name('manajemen-lokasi.destroy-box');
 
@@ -418,6 +425,7 @@ Route::middleware(['auth', 'subbagian'])->prefix('subbagian')->name('subbagian.'
     });
 Route::post('/subbagian/arsip/{arsip}/duplicate', [SubBagianArsipController::class, 'duplicate'])
     ->name('subbagian.arsip.duplicate');
+    Route::get('arsip/{arsip}/file', [ArsipController::class, 'viewFile'])->name('arsip.file.view');
 Route::get(
     '/berita-acara/{berita_acara}/export-lampiran',
     [BeritaAcaraPindahController::class, 'exportLampiran']
@@ -442,7 +450,7 @@ Route::middleware(['auth'])->prefix('subbagian')->name('subbagian.')->group(func
             '/surat-masuk/{id}/disposisi',
             [SubBagianSuratMasukController::class, 'disposisi']
         )->name('surat-masuk.disposisi');
-
+Route::get('arsip/{arsip}/file', [SubBagianArsipController::class, 'viewFile'])->name('arsip.file.view');
         Route::resource('surat-masuk', SubBagianSuratMasukController::class)
             ->only(['index', 'show']);
 });

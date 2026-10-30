@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 
 class ArsipController extends Controller
 {
@@ -388,7 +389,7 @@ class ArsipController extends Controller
         ));
     }
 
-    public function store(Request $request)
+        public function store(Request $request)
     {
         \Log::info('Data yang dikirim:', $request->all());
 
@@ -434,7 +435,7 @@ class ArsipController extends Controller
             // hasil hitung
             'aktif_sampai' => 'nullable|date',
             'inaktif_sampai' => 'nullable|date',
-            'status_arsip' => 'nullable|in:AKTIF,INAKTIF,MUSNAH,PERMANEN',
+            'status_arsip' => 'nullable|in:AKTIF,INAKTIF,HABIS_RETENSI,MUSNAH,PERMANEN',
 
             // optional lain
             'rak_id' => 'required|exists:master_raks,id',
@@ -444,10 +445,12 @@ class ArsipController extends Controller
             'tingkat_perkembangan' => 'nullable|in:ASLI,COPY,SALINAN',
             'keterangan' => 'nullable|in:BAIK,RUSAK,HILANG',
             'media_arsip' => 'nullable|string|max:255',
-            'file_dokumen' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:102400',
+            'uploaded_file' => 'nullable|string|max:255',
             'link_foto' => 'nullable|url|max:1000',
             'sinar_v1_document_id' => 'nullable|exists:sinar_v1_documents,id',
         ]);
+
+        unset($validated['uploaded_file']);
 
         // Validasi tahun
         $tahunInput = (int) $validated['tahun_arsip'];
@@ -459,6 +462,8 @@ class ArsipController extends Controller
             ]);
         }
 
+        $movedFile = null;
+
         try {
             $validated['tahun_arsip'] = (string) $validated['tahun_arsip'];
             if (auth()->check()) {
@@ -467,7 +472,6 @@ class ArsipController extends Controller
             $validated['tanggal_masuk'] = now()->format('Y-m-d');
             $validated['link_foto'] = $request->link_foto;
 
-            // Default field (tanpa nomor_rak dan nomor_box)
             $defaults = [
                 'nomor_sampul' => '',
                 'keterangan' => 'BAIK',
@@ -480,19 +484,17 @@ class ArsipController extends Controller
                 }
             }
 
-            // Upload file
-            // if ($request->hasFile('file_dokumen')) {
-            //     $file = $request->file('file_dokumen');
-            //     $fileName = time().'_'.$file->getClientOriginalName();
-            //     $file->storeAs('arsip', $fileName, 'public');
-            //     $validated['file_dokumen'] = $fileName;
-            // }
+            // File hasil upload bertahap -> disk 'arsip'
+            if ($request->filled('uploaded_file')) {
+                $movedFile = ChunkUploadController::moveToArsip($request->uploaded_file, 'arsip', '');
 
-            if ($request->hasFile('file_dokumen')) {
-                $file = $request->file('file_dokumen');
-                $fileName = time().'_'.$file->getClientOriginalName();
-                $file->storeAs('', $fileName, 'arsip');
-                $validated['file_dokumen'] = $fileName;
+                if (! $movedFile) {
+                    return back()
+                        ->withInput($request->except(['uploaded_file', 'uploaded_file_name']))
+                        ->withErrors(['file_dokumen' => 'File upload tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang.']);
+                }
+
+                $validated['file_dokumen'] = $movedFile;
             }
 
             // Retensi
@@ -538,7 +540,12 @@ class ArsipController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error: '.$e->getMessage());
 
-            return back()->withInput()
+            // Jangan tinggalkan file yatim bila simpan ke database gagal
+            if ($movedFile) {
+                Storage::disk('arsip')->delete($movedFile);
+            }
+
+            return back()->withInput($request->except(['uploaded_file', 'uploaded_file_name']))
                 ->with('error', 'Gagal menyimpan arsip: '.$e->getMessage());
         }
     }
@@ -690,9 +697,8 @@ class ArsipController extends Controller
     //     ));
     // }
 
-    public function update(Request $request, Arsip $arsip)
+        public function update(Request $request, Arsip $arsip)
     {
-        // Debug data masuk
         \Log::info('Data update yang dikirim:', $request->all());
 
         // =========================
@@ -743,22 +749,29 @@ class ArsipController extends Controller
             'media_arsip' => 'nullable|string|max:255',
 
             // File
-            'file_dokumen' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:102400',
+            'uploaded_file' => 'nullable|string|max:255',
             'link_foto' => 'nullable|url|max:1000',
             'hapus_file' => 'nullable|in:0,1',
             'tangani_duplikat' => 'nullable|in:1',
             'duplicate_reason' => 'nullable|string|max:1000',
         ]);
 
-        try {
+        unset($validated['uploaded_file']);
 
+        // Cek alasan duplikat lebih dulu, sebelum menyentuh file
+        if ($request->tangani_duplikat == '1' && ! $request->duplicate_reason) {
+            return back()
+                ->withInput()
+                ->with('error', 'Alasan wajib diisi untuk penanganan duplikat.');
+        }
+
+        try {
             // =========================
             // NORMALISASI DATA
             // =========================
             $validated['tahun_arsip'] = (string) $validated['tahun_arsip'];
             $validated['link_foto'] = $request->link_foto;
 
-            // Default value jika kosong
             $defaults = [
                 'nomor_rak' => '',
                 'nomor_box' => '',
@@ -776,48 +789,37 @@ class ArsipController extends Controller
             // =========================
             // HAPUS FILE LAMA (JIKA DIMINTA)
             // =========================
-            // if (($request->hapus_file ?? '0') == '1' && $arsip->file_dokumen) {
-            //     Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
-            //     $validated['file_dokumen'] = null;
-            // }
             if (($request->hapus_file ?? '0') == '1' && $arsip->file_dokumen) {
                 Storage::disk('arsip')->delete($arsip->file_dokumen);
                 $validated['file_dokumen'] = null;
             }
 
             // =========================
-            // UPLOAD FILE BARU
+            // FILE BARU (UPLOAD BERTAHAP) -> disk 'arsip'
             // =========================
-            // if ($request->hasFile('file_dokumen')) {
-            //     // hapus file lama
-            //     if ($arsip->file_dokumen) {
-            //         Storage::disk('public')->delete('arsip/'.$arsip->file_dokumen);
-            //     }
+            if ($request->filled('uploaded_file')) {
+                $fileName = ChunkUploadController::moveToArsip($request->uploaded_file, 'arsip', '');
 
-            //     $file = $request->file('file_dokumen');
-            //     $fileName = time().'_'.$file->getClientOriginalName();
-            //     $file->storeAs('arsip', $fileName, 'public');
+                if (! $fileName) {
+                    return back()
+                        ->withInput($request->except(['uploaded_file', 'uploaded_file_name']))
+                        ->withErrors(['file_dokumen' => 'File upload tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang.']);
+                }
 
-            //     $validated['file_dokumen'] = $fileName;
-            // }
+                if ($arsip->file_dokumen) {
+                    Storage::disk('arsip')->delete($arsip->file_dokumen);
+                }
 
-            if ($request->hasFile('file_dokumen')) {
-    if ($arsip->file_dokumen) {
-        Storage::disk('arsip')->delete($arsip->file_dokumen);
-    }
-    $file = $request->file('file_dokumen');
-    $fileName = time().'_'.$file->getClientOriginalName();
-    $file->storeAs('', $fileName, 'arsip');
-    $validated['file_dokumen'] = $fileName;
-}
+                $validated['file_dokumen'] = $fileName;
+            }
 
             // =========================
             // HITUNG ULANG RETENSI (SERVER SIDE)
             // =========================
             $perhitungan = null;
             if (! empty($validated['aktif_tahun']) &&
-                 ! empty($validated['inaktif_tahun']) &&
-                 ! empty($validated['keterangan_jra'])) {
+                ! empty($validated['inaktif_tahun']) &&
+                ! empty($validated['keterangan_jra'])) {
 
                 $perhitungan = $this->hitungRetensi(
                     $validated['aktif_tahun'],
@@ -830,41 +832,28 @@ class ArsipController extends Controller
                 $validated['aktif_sampai'] = $perhitungan['aktif_sampai'];
                 $validated['inaktif_sampai'] = $perhitungan['inaktif_sampai'];
                 $validated['status_arsip'] = $perhitungan['status_arsip'];
-
             } else {
-                // kalau tidak diisi, kosongkan
                 $validated['aktif_sampai'] = null;
                 $validated['inaktif_sampai'] = null;
-
-                // status default (opsional, kamu bisa ubah)
                 $validated['status_arsip'] = $validated['status_arsip'] ?? 'AKTIF';
             }
+
             // =========================
             // PENANGANAN DUPLIKAT
             // =========================
             $validated['duplicate_reason'] = $request->duplicate_reason;
-if ($request->tangani_duplikat == '1') {
 
-    if (! $request->duplicate_reason) {
-        return back()
-            ->withInput()
-            ->with('error', 'Alasan wajib diisi untuk penanganan duplikat.');
-    }
+            if ($request->tangani_duplikat == '1') {
+                $validated['status_arsip'] = 'NON_ARSIP';
+                $validated['is_duplicate'] = 0;
 
-    $validated['status_arsip'] = 'NON_ARSIP';
-    $validated['is_duplicate'] = 0;
-
-    Arsip::where('uraian_arsip', $arsip->uraian_arsip)
-        ->where('tahun_arsip', $arsip->tahun_arsip)
-        ->where('tingkat_perkembangan', $arsip->tingkat_perkembangan)
-        ->where('id', '!=', $arsip->id)
-        ->where('status_arsip', '!=', 'NON_ARSIP')
-        ->update([
-            'is_duplicate' => 0,
-        ]);
-
-    $validated['duplicate_reason'] = $request->duplicate_reason;
-}
+                Arsip::where('uraian_arsip', $arsip->uraian_arsip)
+                    ->where('tahun_arsip', $arsip->tahun_arsip)
+                    ->where('tingkat_perkembangan', $arsip->tingkat_perkembangan)
+                    ->where('id', '!=', $arsip->id)
+                    ->where('status_arsip', '!=', 'NON_ARSIP')
+                    ->update(['is_duplicate' => 0]);
+            }
 
             unset($validated['status_pindah']);
 
@@ -877,20 +866,15 @@ if ($request->tangani_duplikat == '1') {
             // =========================
             $arsip->update($validated);
 
-            // return redirect()
-            //     ->route('arsip.show', $arsip->id)
-            //     ->with('success', 'Arsip berhasil diperbarui.');
-
             return redirect($request->redirect_url ?? route('arsip.index'))
                 ->with('success', 'Arsip berhasil diupdate');
 
         } catch (\Exception $e) {
-
             \Log::error('Gagal update arsip: '.$e->getMessage());
             \Log::error($e->getTraceAsString());
 
             return back()
-                ->withInput()
+                ->withInput($request->except(['uploaded_file', 'uploaded_file_name']))
                 ->with('error', 'Gagal memperbarui arsip: '.$e->getMessage());
         }
     }
@@ -912,23 +896,50 @@ if ($request->tangani_duplikat == '1') {
             ->with('success', 'Arsip berhasil dihapus.');
     }
 
+      private function resolveArsipFile(Arsip $arsip): ?array
+    {
+        if (! $arsip->file_dokumen) {
+            return null;
+        }
+
+        // 1. Disk khusus arsip (upload dari halaman admin)
+        if (Storage::disk('arsip')->exists($arsip->file_dokumen)) {
+            return ['arsip', $arsip->file_dokumen];
+        }
+
+        // 2. Disk public folder arsip (upload dari halaman sub bagian)
+        if (Storage::disk('public')->exists('arsip/'.$arsip->file_dokumen)) {
+            return ['public', 'arsip/'.$arsip->file_dokumen];
+        }
+
+        return null;
+    }
+
     public function viewFile(Arsip $arsip)
-{
-    if (! $arsip->file_dokumen || ! Storage::disk('arsip')->exists($arsip->file_dokumen)) {
-        abort(404, 'File dokumen tidak ditemukan di server ini.');
+    {
+        $file = $this->resolveArsipFile($arsip);
+
+        if (! $file) {
+            abort(404, 'File dokumen tidak ditemukan di server ini.');
+        }
+
+        [$disk, $path] = $file;
+
+        return Storage::disk($disk)->response($path);
     }
 
-    return Storage::disk('arsip')->response($arsip->file_dokumen);
-}
+    public function downloadFile(Arsip $arsip)
+    {
+        $file = $this->resolveArsipFile($arsip);
 
-public function downloadFile(Arsip $arsip)
-{
-    if (! $arsip->file_dokumen || ! Storage::disk('arsip')->exists($arsip->file_dokumen)) {
-        abort(404, 'File dokumen tidak ditemukan di server ini.');
+        if (! $file) {
+            abort(404, 'File dokumen tidak ditemukan di server ini.');
+        }
+
+        [$disk, $path] = $file;
+
+        return Storage::disk($disk)->download($path);
     }
-
-    return Storage::disk('arsip')->download($arsip->file_dokumen);
-}
 
     /**
      * Fungsi untuk memperbarui status semua arsip

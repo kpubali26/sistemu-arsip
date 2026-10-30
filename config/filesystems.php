@@ -62,8 +62,9 @@ return [
 
         'arsip' => [
             'driver'     => 'local',
-            'root'       => env('ARSIP_STORAGE_PATH', storage_path('app/public/arsip')),
+            'root'       => storage_path('app/public/arsip'),
             'visibility' => 'private',
+            'throw'      => false,
         ],
 
     ],

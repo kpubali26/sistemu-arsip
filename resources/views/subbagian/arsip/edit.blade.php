@@ -63,6 +63,12 @@
         </div>
         @endif
 
+        @if (session('error'))
+        <div class="alert alert-danger">
+            {{ session('error') }}
+        </div>
+        @endif
+
         <form action="{{ route('subbagian.arsip.update', $arsip->id) }}" method="POST" enctype="multipart/form-data" id="arsipForm">
             @csrf
             @method('PUT')
@@ -110,20 +116,20 @@
                 <!-- Uraian Arsip -->
                 <div class="col-md-12 mb-3">
                     <label for="uraian_arsip" class="form-label">
-    Uraian/Judul Arsip <span class="text-danger">*</span>
-    <i class="bi bi-info-circle text-primary"
-       data-bs-toggle="tooltip"
-       data-bs-html="true"
-       title="
-       Isi uraian arsip sesuai dengan judul, maksud, atau tujuan dokumen berdasarkan ketentuan naskah dinas KPU.<br><br>
-       <b>Minimal 30 karakter.</b><br><br>
-       <b>Contoh Benar:</b><br>
-       Surat Undangan KPU Provinsi Bali Nomor: 1245/RT.01.2-Und/51/1/2026, perihal Rapat Koordinasi Pengelolaan Aset Tanah melalui Sistem Informasi Manajemen Tanah Pemerintah.<br><br>
-       <b>Contoh Salah:</b><br>
-       Surat Undangan tentang Rapat Koordinasi.
-       ">
-    </i>
-</label>
+                        Uraian/Judul Arsip <span class="text-danger">*</span>
+                        <i class="bi bi-info-circle text-primary"
+                           data-bs-toggle="tooltip"
+                           data-bs-html="true"
+                           title="
+                           Isi uraian arsip sesuai dengan judul, maksud, atau tujuan dokumen berdasarkan ketentuan naskah dinas KPU.<br><br>
+                           <b>Minimal 30 karakter.</b><br><br>
+                           <b>Contoh Benar:</b><br>
+                           Surat Undangan KPU Provinsi Bali Nomor: 1245/RT.01.2-Und/51/1/2026, perihal Rapat Koordinasi Pengelolaan Aset Tanah melalui Sistem Informasi Manajemen Tanah Pemerintah.<br><br>
+                           <b>Contoh Salah:</b><br>
+                           Surat Undangan tentang Rapat Koordinasi.
+                           ">
+                        </i>
+                    </label>
                     <input type="text" class="form-control @error('uraian_arsip') is-invalid @enderror" name="uraian_arsip" value="{{ old('uraian_arsip', $arsip->uraian_arsip) }}" required>
                     @error('uraian_arsip')
                         <div class="invalid-feedback">{{ $message }}</div>
@@ -230,7 +236,7 @@
 
             <hr>
 
-            <!-- INFORMASI TAMBAHAN (Opsional) -->
+            <!-- INFORMASI TAMBAHAN -->
             <h6 class="mb-3 text-primary">Informasi Tambahan (Opsional)</h6>
             <div class="row">
                 <!-- Lokasi Arsip -->
@@ -247,7 +253,7 @@
                     <select class="form-control @error('rak_id') is-invalid @enderror" id="rak_id" name="rak_id" required>
                         <option value="">Pilih Rak</option>
                         @forelse($rakOptions as $rak)
-                            <option value="{{ $rak->id }}" 
+                            <option value="{{ $rak->id }}"
                                     data-lokasi="{{ $rak->lokasi_arsip }}"
                                     {{ old('rak_id', $arsip->rak_id) == $rak->id ? 'selected' : '' }}>
                                 {{ $rak->nomor_rak }}
@@ -268,7 +274,7 @@
                     <select class="form-control @error('box_id') is-invalid @enderror" id="box_id" name="box_id" required>
                         <option value="">Pilih Box</option>
                         @forelse($boxOptions as $box)
-                            <option value="{{ $box->id }}" 
+                            <option value="{{ $box->id }}"
                                     data-rak-id="{{ $box->rak_id }}"
                                     {{ old('box_id', $arsip->box_id) == $box->id ? 'selected' : '' }}>
                                 {{ $box->nomor_box }}
@@ -285,54 +291,23 @@
 
                 <!-- Nomor Sampul -->
                 <div class="col-md-4 mb-3">
-                  <label for="nomor_sampul" class="form-label">Nomor Sampul <span class="text-muted">(Opsional)</span></label>
-                    <input type="text" class="form-control @error('nomor_sampul') is-invalid @enderror" 
+                    <label for="nomor_sampul" class="form-label">Nomor Sampul <span class="text-muted">(Opsional)</span></label>
+                    <input type="text" class="form-control @error('nomor_sampul') is-invalid @enderror"
                         name="nomor_sampul" value="{{ old('nomor_sampul', $arsip->nomor_sampul) }}" placeholder="Contoh: 1">
                     <small class="text-muted">Isi jika ada nomor sampul</small>
-                        @error('nomor_sampul')
+                    @error('nomor_sampul')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
-
-                <!-- Tanggal Masuk -->
-                <!-- {{-- <div class="col-md-6 mb-3">
-                    <label for="tanggal_masuk" class="form-label">Tanggal Masuk</label>
-                    <input type="date" class="form-control @error('tanggal_masuk') is-invalid @enderror" 
-                        name="tanggal_masuk" value="{{ old('tanggal_masuk', $arsip->tanggal_masuk_for_input) }}">
-                    <small class="text-muted">Tanggal arsip dimasukkan ke sistem</small>
-                    @error('tanggal_masuk')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div> --}} -->
             </div>
 
             <!-- File Upload & Link -->
             <div class="row mt-3">
-                <div class="col-md-6 mb-3">
-                    <label for="file_dokumen" class="form-label">File Dokumen</label>
-                    @if($arsip->file_dokumen)
-                        <div class="mb-2">
-                            <span class="badge bg-info">File saat ini:</span>
-                            <a href="{{ Storage::url('arsip/' . $arsip->file_dokumen) }}" target="_blank">
-                                {{ $arsip->file_dokumen }}
-                            </a>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusFile()">
-                                <i class="bi bi-trash"></i> Hapus
-                            </button>
-                            <input type="hidden" name="hapus_file" id="hapus_file" value="0">
-                        </div>
-                    @endif
-                    <input type="file" class="form-control @error('file_dokumen') is-invalid @enderror" 
-                        name="file_dokumen" accept=".pdf,.jpg,.jpeg,.png">
-                    <small class="text-muted">Format: PDF, JPG, JPEG, PNG (Maks: 100MB)</small>
-                    @error('file_dokumen')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+                @include('subbagian.arsip.partials.upload-dokumen', ['arsip' => $arsip])
 
                 <div class="col-md-6 mb-3">
                     <label for="link_foto" class="form-label">Link Foto / URL Dokumen</label>
-                    <input type="url" class="form-control @error('link_foto') is-invalid @enderror" 
+                    <input type="url" class="form-control @error('link_foto') is-invalid @enderror"
                         name="link_foto" value="{{ old('link_foto', $arsip->link_foto) }}" placeholder="https://drive.google.com/file/d/...">
                     @if($arsip->link_foto)
                         <small class="d-block mt-2">
@@ -356,7 +331,7 @@
                         <div class="col-md-4 mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="tangani_duplikat" name="tangani_duplikat" value="1">
-                                <label class="form-check-label fw-bold">
+                                <label class="form-check-label fw-bold" for="tangani_duplikat">
                                     Ubah status menjadi <span class="text-danger">NON ARSIP</span>
                                 </label>
                                 <small class="d-block text-muted">Gunakan jika arsip ini terbukti duplikat dan tidak digunakan</small>
@@ -387,31 +362,30 @@
 @endsection
 
 @push('scripts')
+{{-- WAJIB: script upload bertahap --}}
+<script src="{{ asset('js/chunk-upload.js') }}?v=3"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const rakSelect = document.getElementById('rak_id');
     const boxSelect = document.getElementById('box_id');
 
-    // Simpan semua opsi asli
     const allRakOptions = Array.from(rakSelect.querySelectorAll('option:not([value=""])'));
     const allBoxOptions = Array.from(boxSelect.querySelectorAll('option:not([value=""])'));
 
-    // Ambil nilai yang tersimpan
     const selectedLokasi = "{{ $lokasi }}";
-    const selectedRakId = "{{ old('rak_id', $arsip->rak_id) }}";
-    const selectedBoxId = "{{ old('box_id', $arsip->box_id) }}";
+    const savedRakId = "{{ old('rak_id', $arsip->rak_id) }}";
+    const savedBoxId = "{{ old('box_id', $arsip->box_id) }}";
 
     function filterRak() {
-        // Reset rak
         rakSelect.innerHTML = '<option value="">Pilih Rak</option>';
         const infoRak = document.getElementById('rak-info');
-        
+
         if (!selectedLokasi) {
             infoRak.textContent = 'Lokasi tidak ditemukan';
             return;
         }
 
-        // Filter rak berdasarkan lokasi
         const filteredRak = allRakOptions.filter(opt => {
             return opt.getAttribute('data-lokasi') === selectedLokasi;
         });
@@ -422,33 +396,30 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             infoRak.textContent = filteredRak.length + ' rak tersedia';
             filteredRak.forEach(opt => rakSelect.appendChild(opt));
-            
-            // Set selected rak jika ada
-            if (selectedRakId) {
-                const rakOption = rakSelect.querySelector('option[value="' + selectedRakId + '"]');
+
+            if (savedRakId) {
+                const rakOption = rakSelect.querySelector('option[value="' + savedRakId + '"]');
                 if (rakOption) {
                     rakOption.selected = true;
                 }
             }
         }
 
-        // Trigger change untuk filter box
         rakSelect.dispatchEvent(new Event('change'));
     }
 
     function filterBox() {
-        const selectedRakId = rakSelect.value;
+        const currentRakId = rakSelect.value;
         boxSelect.innerHTML = '<option value="">Pilih Box</option>';
         const infoBox = document.getElementById('box-info');
 
-        if (!selectedRakId) {
+        if (!currentRakId) {
             infoBox.textContent = 'Pilih rak terlebih dahulu';
             return;
         }
 
-        // Filter box berdasarkan rak_id
         const filteredBox = allBoxOptions.filter(opt => {
-            return opt.getAttribute('data-rak-id') === selectedRakId;
+            return opt.getAttribute('data-rak-id') === currentRakId;
         });
 
         if (filteredBox.length === 0) {
@@ -457,10 +428,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             infoBox.textContent = filteredBox.length + ' box tersedia';
             filteredBox.forEach(opt => boxSelect.appendChild(opt));
-            
-            // Set selected box jika ada
-            if (selectedBoxId) {
-                const boxOption = boxSelect.querySelector('option[value="' + selectedBoxId + '"]');
+
+            if (savedBoxId) {
+                const boxOption = boxSelect.querySelector('option[value="' + savedBoxId + '"]');
                 if (boxOption) {
                     boxOption.selected = true;
                 }
@@ -468,22 +438,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Jalankan filter
-    filterRak();
-
-    // Event listener
+    // Pasang listener dulu, baru jalankan filter
     rakSelect.addEventListener('change', filterBox);
-
-    // Fungsi hapus file
-    window.hapusFile = function() {
-        if (confirm('Apakah Anda yakin ingin menghapus file ini?')) {
-            document.getElementById('hapus_file').value = '1';
-            const fileInfoDiv = document.querySelector('.mb-2');
-            if (fileInfoDiv) {
-                fileInfoDiv.style.display = 'none';
-            }
-        }
-    }
+    filterRak();
 });
 </script>
 <script>
@@ -527,16 +484,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Kalau tanggal diubah, samakan tahun otomatis
     tanggalInput.addEventListener('change', syncTahunFromTanggal);
-
-    // Kalau tahun diubah manual, cek kecocokan
     tahunInput.addEventListener('input', cekKecocokan);
-
-    // Cek saat halaman pertama load (data lama dari database)
     cekKecocokan();
 
-    // Cegah submit kalau tidak cocok
     form.addEventListener('submit', function (e) {
         if (!tanggalInput.value || !tahunInput.value) return;
         const tahunTanggal = new Date(tanggalInput.value).getFullYear();
@@ -557,7 +508,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!searchInput || !hiddenInput || !dropdown) return;
 
-    // Isi otomatis label sesuai kode klasifikasi arsip yang sedang diedit (atau old value)
     if (hiddenInput.value) {
         const selected = options.find(opt => opt.dataset.value === hiddenInput.value);
         if (selected) {
